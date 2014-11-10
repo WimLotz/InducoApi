@@ -4,18 +4,8 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-	"io"
-	"io/ioutil"
 	"log"
 )
-
-func ReadRequestBody(r io.Reader) []byte {
-	body, err := ioutil.ReadAll(r)
-	if err != nil {
-		log.Printf("Error occured reading from request body: %v\n", err)
-	}
-	return body
-}
 
 func MarshalObjectToJson(obj interface{}) []byte {
 	bytes, err := json.Marshal(obj)

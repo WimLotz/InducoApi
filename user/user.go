@@ -1,7 +1,7 @@
 package user
 
 import (
-	"datastore"
+	"github.com/WimLotz/InducoApi/datastore"
 	"gopkg.in/mgo.v2/bson"
 	"log"
 )
@@ -10,7 +10,6 @@ type User struct {
 	Id       bson.ObjectId `bson:"_id" json:"id"`
 	Email    string        `bson:"email" json:"email"`
 	Password string        `bson:"password" json:"password"`
-	Found    bool
 }
 
 func New() User {
@@ -24,15 +23,14 @@ func (u *User) Save() {
 	}
 }
 
-func (u *User) FetchOnEmail() *User {
+func (u *User) FetchOnEmail() error {
 	err := datastore.UsersCollection.Find(bson.M{"email": u.Email}).One(u)
 	if err != nil {
-		log.Printf("user: %v\n", err)
-		u.Found = false
-	} else {
-		u.Found = true
+		log.Printf("User %v\n", err)
+		return err
 	}
-	return u
+
+	return nil
 }
 
 func (u *User) IsSuppliedPasswordCorrect(suppliedPassword string) bool {

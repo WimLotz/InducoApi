@@ -1,7 +1,7 @@
 package profile
 
 import (
-	"datastore"
+	"github.com/WimLotz/InducoApi/datastore"
 	"log"
 
 	"gopkg.in/mgo.v2/bson"
