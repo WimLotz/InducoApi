@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/WimLotz/InducoApi/datastore"
+	"github.com/WimLotz/InducoApi/profile"
 	"github.com/WimLotz/InducoApi/user"
 	"github.com/WimLotz/InducoApi/utils"
 	"github.com/gorilla/mux"
@@ -20,6 +21,12 @@ const (
 )
 
 var sessionStore = sessions.NewCookieStore([]byte(utils.RandomString(32)))
+
+//func init() {
+//   sessionStore.Options = &sessions.Options{
+//    MaxAge:   3600 * 8, // 8 hours
+//    HttpOnly: true,
+//}
 
 //type (
 //	appError struct {
@@ -93,7 +100,6 @@ func login(w http.ResponseWriter, r *http.Request) {
 		}
 
 		u := user.New()
-
 		err = json.Unmarshal(body, &u)
 		if err != nil {
 			w.WriteHeader(400)
@@ -109,16 +115,14 @@ func login(w http.ResponseWriter, r *http.Request) {
 			return
 		} else {
 			isCorrectPassword := u.IsSuppliedPasswordCorrect(userSuppliedPassword)
-			fmt.Printf("pass:%v", isCorrectPassword)
-			fmt.Printf("user:%v", u)
+
 			if !isCorrectPassword {
 				w.WriteHeader(401)
 				fmt.Fprintf(w, "Wrong password")
 				return
 			}
 
-			session, _ := sessionStore.Get(r, "sessionName")
-
+			session, _ := sessionStore.Get(r, "userDetailSession")
 			session.Values["userId"] = bson.ObjectId.Hex(u.Id)
 			err = session.Save(r, w)
 			if err != nil {
@@ -134,24 +138,50 @@ func login(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(400)
 }
 
-//func fetchUserProfiles(w http.ResponseWriter, r *http.Request, session *sessions.Session) *appError {
-//
-//	userId := session.Values["userId"]
-//
-//	if bson.IsObjectIdHex(userId.(string)) {
-//		p := profile.New()
-//		profiles := p.Fetch(bson.ObjectIdHex(userId.(string)))
-//
-//		w.Header().Set("Content-Type", "application/json")
-//		w.Write(utils.MarshalObjectToJson(profiles))
-//
-//	} else {
-//		return &appError{nil, "Error converting session userId to bson.ObjectId", http.StatusInternalServerError}
-//	}
-//
-//	return nil
-//}
-//
+func fetchUserProfiles(w http.ResponseWriter, r *http.Request) {
+
+	if origin := r.Header.Get("Origin"); origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+	} else {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+	}
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token")
+
+	if r.Method == "GET" {
+		session, err := sessionStore.Get(r, "userDetailSession")
+		fmt.Printf("sessoin:%v", session)
+		if err != nil {
+			w.WriteHeader(400)
+		}
+
+		fmt.Printf("session values:%v", session.Values)
+		userId := session.Values["userId"]
+		if userId == nil {
+			w.WriteHeader(403)
+			return
+		}
+
+		if !bson.IsObjectIdHex(userId.(string)) {
+			w.WriteHeader(400)
+			return
+		}
+
+		p := profile.New()
+		profiles := p.Fetch(bson.ObjectIdHex(userId.(string)))
+
+		encoder := json.NewEncoder(w)
+		err = encoder.Encode(profiles)
+		if err != nil {
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "Json encode error: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+	}
+	w.WriteHeader(400)
+}
+
 //func saveProfile(w http.ResponseWriter, r *http.Request, session *sessions.Session) *appError {
 //
 //	body := utils.ReadRequestBody(r.Body)
@@ -176,12 +206,16 @@ func login(w http.ResponseWriter, r *http.Request) {
 //}
 
 func main() {
+	sessionStore.Options = &sessions.Options{
+		Path:   "/",
+		MaxAge: 3600 * 8, // 8 hours
+	}
 	r := mux.NewRouter()
 
 	//r.Handle("/saveUser", saveUser)
 	r.HandleFunc("/login", login)
 	//r.Handle("/saveProfile", makeHandler(saveProfile))
-	//r.Handle("/fetchUserProfiles", makeHandler(fetchUserProfiles))
+	r.HandleFunc("/fetchUserProfiles", fetchUserProfiles)
 	//r.Handle("/fetchAllProfiles", makeHandler(fetchAllProfiles))
 
 	//r.PathPrefix("/").Handler(http.StripPrefix("/", http.FileServer(http.Dir("."))))
