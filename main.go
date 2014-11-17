@@ -37,7 +37,7 @@ var sessionStore = sessions.NewCookieStore([]byte(utils.RandomString(32)))
 //	appErrorWrapper func(http.ResponseWriter, *http.Request) *appError
 //)
 //
-//func (fn appErrorWrapper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+//func (fn appErrorWrapper) SServeHTTP(w http.ResponseWriter, r *http.Request) {
 //	if e := fn(w, r); e != nil {
 //		log.Println(e.Error)
 //		http.Error(w, e.Message, e.Code)
@@ -151,12 +151,10 @@ func fetchUserProfiles(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "GET" {
 		session, err := sessionStore.Get(r, "userDetailSession")
-		fmt.Printf("sessoin:%v", session)
 		if err != nil {
 			w.WriteHeader(400)
 		}
 
-		fmt.Printf("session values:%v", session.Values)
 		userId := session.Values["userId"]
 		if userId == nil {
 			w.WriteHeader(403)
@@ -180,6 +178,42 @@ func fetchUserProfiles(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 	}
 	w.WriteHeader(400)
+}
+
+func logout(w http.ResponseWriter, r *http.Request) {
+
+	if origin := r.Header.Get("Origin"); origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+	} else {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+	}
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token")
+
+	if r.Method == "POST" {
+		session, err := sessionStore.Get(r, "userDetailSession")
+		if err != nil {
+			w.WriteHeader(400)
+		}
+
+		userId := session.Values["userId"]
+		if userId == nil {
+			w.WriteHeader(403)
+			return
+		}
+
+		session.Values["userId"] = ""
+
+		err = session.Save(r, w)
+		if err != nil {
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "Unable to save session")
+			return
+		}
+
+		w.WriteHeader(200)
+	}
 }
 
 //func saveProfile(w http.ResponseWriter, r *http.Request, session *sessions.Session) *appError {
@@ -214,6 +248,7 @@ func main() {
 
 	//r.Handle("/saveUser", saveUser)
 	r.HandleFunc("/login", login)
+	r.HandleFunc("/logout", logout)
 	//r.Handle("/saveProfile", makeHandler(saveProfile))
 	r.HandleFunc("/fetchUserProfiles", fetchUserProfiles)
 	//r.Handle("/fetchAllProfiles", makeHandler(fetchAllProfiles))
