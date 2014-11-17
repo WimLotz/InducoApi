@@ -109,6 +109,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 		userSuppliedPassword := u.Password
 		err = u.FetchOnEmail()
+
 		if err != nil {
 			w.WriteHeader(401)
 			fmt.Fprintf(w, "Unable to find user", err)
@@ -153,6 +154,7 @@ func fetchUserProfiles(w http.ResponseWriter, r *http.Request) {
 		session, err := sessionStore.Get(r, "userDetailSession")
 		if err != nil {
 			w.WriteHeader(400)
+			return
 		}
 
 		userId := session.Values["userId"]
@@ -174,8 +176,10 @@ func fetchUserProfiles(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			w.WriteHeader(500)
 			fmt.Fprintf(w, "Json encode error: %v", err)
+			return
 		}
 		w.Header().Set("Content-Type", "application/json")
+		return
 	}
 	w.WriteHeader(400)
 }
@@ -195,6 +199,7 @@ func logout(w http.ResponseWriter, r *http.Request) {
 		session, err := sessionStore.Get(r, "userDetailSession")
 		if err != nil {
 			w.WriteHeader(400)
+			return
 		}
 
 		userId := session.Values["userId"]
